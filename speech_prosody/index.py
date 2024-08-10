@@ -1,4 +1,6 @@
 import asyncio
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Query, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -8,6 +10,9 @@ from hume import HumeStreamClient
 from hume.models.config import ProsodyConfig
 import logging
 import base64
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI()
 
@@ -24,7 +29,7 @@ class AudioSegment(BaseModel):
     end: float
 
 async def process_prosody(audio_data: bytes):
-    client = HumeStreamClient("YOUR_HUME_API_KEY")
+    client = HumeStreamClient(os.getenv("HUME_API_KEY"))
     config = ProsodyConfig()
     async with client.connect([config]) as socket:
         result = await socket.send_audio(audio_data)
@@ -34,15 +39,12 @@ async def process_prosody(audio_data: bytes):
 async def websocket_endpoint(websocket: WebSocket, session_id: str, uid: str = Query(...)):
     await websocket.accept()
     active_connections[session_id] = websocket
-    
     try:
         while True:
             data = await websocket.receive_text()
             audio_segment = AudioSegment.parse_raw(data)
-            
             audio_data = base64.b64decode(audio_segment.audio_data)
             prosody_result = await process_prosody(audio_data)
-            
             response = {
                 "segment": {
                     "start": audio_segment.start,
@@ -50,9 +52,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, uid: str = Q
                 },
                 "prosody_analysis": prosody_result
             }
-            
             await websocket.send_json(response)
-    
     except Exception as e:
         logger.error(f"WebSocket Error: {e}")
     finally:
@@ -63,9 +63,7 @@ async def audio_upload_endpoint(file: UploadFile = File(...), uid: str = Query(.
     try:
         contents = await file.read()
         prosody_result = await process_prosody(contents)
-        
         return JSONResponse(content={"prosody_analysis": prosody_result})
-    
     except Exception as e:
         logger.error(f"Audio Upload Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
