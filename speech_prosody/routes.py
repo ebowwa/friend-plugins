@@ -2,10 +2,10 @@
 from fastapi import APIRouter, WebSocket, Query, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 import base64
-from app.models import AudioSegment
-from app.hume_client import process_prosody
-from app.websocket_manager import WebSocketManager
-from app.config import logger
+from speech_prosody.models import AudioSegment
+from speech_prosody.hume_client import process_prosody
+from speech_prosody.websocket_manager import WebSocketManager
+from speech_prosody.config import logger
 
 router = APIRouter()
 websocket_manager = WebSocketManager()
