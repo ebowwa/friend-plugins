@@ -3,3 +3,4 @@ hume
 python-multipart
 uvicorn
 python-dotenv
+modal
