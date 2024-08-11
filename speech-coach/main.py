@@ -25,16 +25,17 @@ from typing import Any
 web_app = fastapi.FastAPI()
 
 
-@app.function(keep_warm=1, timeout=60 * 60)
+test_volume = modal.Volume.from_name("test", create_if_missing=True)
+
+
+@app.function(
+    keep_warm=1,
+    timeout=60 * 60,
+    volumes={"/test": test_volume},
+)
 @asgi_app()
 def wrapper():
     return web_app
-
-
-def print_emotions(emotions: list[dict[str, Any]]) -> None:
-    emotion_map = {e["name"]: e["score"] for e in emotions}
-    for emotion in ["Joy", "Sadness", "Anger"]:
-        print(f"- {emotion}: {emotion_map[emotion]:4f}")
 
 
 def analyze_emotion(filename: str):
@@ -51,17 +52,31 @@ def analyze_emotion(filename: str):
     job.await_complete()
     print("Job completed with status: ", job.get_status())
 
+    emotion_scores = {}
+    emotion_counts = {}
     full_predictions = job.get_predictions()
     for source in full_predictions:
-        source_name = source["source"]["url"]
         predictions = source["results"]["predictions"]
         for prediction in predictions:
             prosody_predictions = prediction["models"]["prosody"]["grouped_predictions"]
             for prosody_prediction in prosody_predictions:
-                for segment in prosody_prediction["predictions"][:1]:
-                    print_emotions(segment["emotions"])
-
-    print("Predictions downloaded to predictions.json")
+                for segment in prosody_prediction["predictions"]:
+                    for emotion in segment["emotions"]:
+                        if emotion["name"] in emotion_scores:
+                            emotion_scores[emotion["name"]] += emotion["score"]
+                            emotion_counts[emotion["name"]] += 1
+                        else:
+                            emotion_scores[emotion["name"]] = emotion["score"]
+                            emotion_counts[emotion["name"]] = 1
+    sorted_emotions = sorted(emotion_scores.items(), key=lambda x: x[1], reverse=True)
+    message = "Your speech was "
+    emotion_messages = []
+    for i in range(3):
+        emotion = sorted_emotions[i][0]
+        score = int(sorted_emotions[i][1] * 100 / emotion_counts[emotion])
+        emotion_messages.append(f"{emotion} {score}%")
+    message += ", ".join(emotion_messages)
+    return message
 
 
 def download_blob(bucket_name, source_blob_name, destination_file_name):
@@ -109,11 +124,13 @@ async def memory(
     request: Request,
     uid: str,
 ):
+    import json
+
     # Example usage:
     bucket_name = "speech-judge"
-    source_blob_name = "recording-20240810_171149.wav"
-    destination_file_name = "./downloaded_file.wav"
-
+    source_blob_name = "recording-20240810_195225.wav"
+    destination_file_name = "/test/downloaded_file.wav"
     download_blob(bucket_name, source_blob_name, destination_file_name)
-    analyze_emotion(destination_file_name)
-    return {"message": "Hi"}
+    test_volume.commit()
+
+    return {"message": analyze_emotion(destination_file_name)}
