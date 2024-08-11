@@ -1,6 +1,9 @@
-fastapi
+fastapi==0.95.2
 hume
 python-multipart
 uvicorn
 python-dotenv
 modal
+google-cloud-storage
+google-auth
+pydantic==2.8.2

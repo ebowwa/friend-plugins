@@ -1,3 +1,5 @@
+# speech-coach/main.py
+
 import modal
 import logging
 
@@ -12,7 +14,7 @@ app = modal.App(
     image=modal.Image.debian_slim().pip_install(
         "uvicorn", "google-cloud-storage", "hume", "pydantic==1.10.11"
     ),
-    secrets=[modal.Secret.from_name("friend-gcp"), modal.Secret.from_name("hume-ai")],
+    secrets=[modal.Secret.from_name("friend_gcp"), modal.Secret.from_name("HUME_API_KEY")],
 )
 
 
