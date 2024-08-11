@@ -128,7 +128,7 @@ async def memory(
 
     # Example usage:
     bucket_name = "speech-judge"
-    source_blob_name = "recording-20240810_195225.wav"
+    source_blob_name = "recording-20240810_200556.wav"
     destination_file_name = "/test/downloaded_file.wav"
     download_blob(bucket_name, source_blob_name, destination_file_name)
     test_volume.commit()
